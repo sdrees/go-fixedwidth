@@ -19,13 +19,15 @@ type mixedData struct {
 	F11 float64  `fixed:"101,110"`
 	F12 *float64 `fixed:"111,120"`
 	F13 float32  `fixed:"121,130"`
+	F14 bool     `fixed:"131,140"`
+	F15 bool     `fixed:"141,150"`
 	//F14 *float32 `fixed:"131,140"`
 }
 
-var mixedDataInstance = mixedData{"foo", stringp("foo"), 42, int64p(42), 42, int32p(42), 42, int16p(42), 42, int8p(42), 4.2, float64p(4.2), 4.2} //,float32p(4.2)}
+var mixedDataInstance = mixedData{"foo", stringp("foo"), 42, int64p(42), 42, int32p(42), 42, int16p(42), 42, int8p(42), 4.2, float64p(4.2), 4.2, false, true} //,float32p(4.2)}
 
 func BenchmarkUnmarshal_MixedData_1(b *testing.B) {
-	data := []byte(`       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2`)
+	data := []byte(`       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2     false         t`)
 	var v mixedData
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -34,7 +36,7 @@ func BenchmarkUnmarshal_MixedData_1(b *testing.B) {
 }
 
 func BenchmarkUnmarshal_MixedData_1000(b *testing.B) {
-	data := bytes.Repeat([]byte(`       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2`+"\n"), 100)
+	data := bytes.Repeat([]byte(`       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2     false         t`+"\n"), 100)
 	var v []mixedData
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -43,7 +45,7 @@ func BenchmarkUnmarshal_MixedData_1000(b *testing.B) {
 }
 
 func BenchmarkUnmarshal_MixedData_100000(b *testing.B) {
-	data := bytes.Repeat([]byte(`       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2`+"\n"), 10000)
+	data := bytes.Repeat([]byte(`       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2     false         t`+"\n"), 10000)
 	var v []mixedData
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -52,7 +54,7 @@ func BenchmarkUnmarshal_MixedData_100000(b *testing.B) {
 }
 
 func BenchmarkDecode_CodePoints_MixedData_1_Ascii(b *testing.B) {
-	data := []byte(`       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2`)
+	data := []byte(`       foo       foo        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2     false         t`)
 	var v mixedData
 	for i := 0; i < b.N; i++ {
 		d := NewDecoder(bytes.NewReader(data))
@@ -62,7 +64,7 @@ func BenchmarkDecode_CodePoints_MixedData_1_Ascii(b *testing.B) {
 }
 
 func BenchmarkDecode_CodePoints_MixedData_1_UTF8(b *testing.B) {
-	data := []byte(`       f☃☃       f☃☃        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2`)
+	data := []byte(`       f☃☃       f☃☃        42        42        42        42        42        42        42        42       4.2       4.2       4.2       4.2     false         t`)
 	var v mixedData
 	for i := 0; i < b.N; i++ {
 		d := NewDecoder(bytes.NewReader(data))
@@ -143,6 +145,58 @@ func BenchmarkMarshal_MixedData_100000(b *testing.B) {
 	}
 }
 
+func BenchmarkEncode_CodePoints_MixedData_1_Ascii(b *testing.B) {
+	v := mixedData{
+		F1:  "foo",
+		F2:  stringp("foo"),
+		F3:  42,
+		F4:  int64p(42),
+		F5:  42,
+		F6:  int32p(42),
+		F7:  42,
+		F8:  int16p(42),
+		F9:  42,
+		F10: int8p(8),
+		F11: 42,
+		F12: float64p(42),
+		F13: 42,
+		F14: false,
+		F15: true,
+	}
+	for i := 0; i < b.N; i++ {
+		buff := new(bytes.Buffer)
+		d := NewEncoder(buff)
+		d.SetUseCodepointIndices(true)
+		_ = d.Encode(v)
+	}
+}
+
+func BenchmarkEncode_CodePoints_MixedData_1_UTF8(b *testing.B) {
+	v := mixedData{
+		F1:  "f☃☃",
+		F2:  stringp("f☃☃"),
+		F3:  42,
+		F4:  int64p(42),
+		F5:  42,
+		F6:  int32p(42),
+		F7:  42,
+		F8:  int16p(42),
+		F9:  42,
+		F10: int8p(8),
+		F11: 42,
+		F12: float64p(42),
+		F13: 42,
+		F14: false,
+		F15: true,
+	}
+	for i := 0; i < b.N; i++ {
+		buff := new(bytes.Buffer)
+		d := NewEncoder(buff)
+		d.SetUseCodepointIndices(true)
+		_ = d.Encode(v)
+	}
+}
+
 func BenchmarkMarshal_String(b *testing.B) {
 	v := struct {
 		F1 string `fixed:"1,10"`
@@ -184,6 +238,18 @@ func BenchmarkMarshal_Float64(b *testing.B) {
 		F1 float64 `fixed:"1,10"`
 	}{
 		F1: 4.2,
+	}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Marshal(v)
+	}
+}
+
+func BenchmarkMarshal_Bool(b *testing.B) {
+	v := struct {
+		F1 bool `fixed:"1,10"`
+	}{
+		F1: false,
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
