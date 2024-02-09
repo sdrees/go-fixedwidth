@@ -386,6 +386,85 @@ func TestDecodeSetUseCodepointIndices(t *testing.T) {
 
 }
 
+func TestDecode_Nested(t *testing.T) {
+	type Nested struct {
+		First  string `fixed:"1,3"`
+		Second string `fixed:"4,6"`
+	}
+
+	type Test struct {
+		First  string `fixed:"1,3"`
+		Second Nested `fixed:"4,9,none"`
+		Third  string `fixed:"10,12"`
+		Fourth Nested `fixed:"13,18,none"`
+		Fifth  string `fixed:"19,21"`
+	}
+
+	for _, tt := range []struct {
+		name     string
+		raw      []byte
+		expected Test
+	}{
+		{
+			name: "All ASCII characters",
+			raw:  []byte("123ABC456DEF789GHI012\n"),
+			expected: Test{
+				First:  "123",
+				Second: Nested{First: "ABC", Second: "456"},
+				Third:  "DEF",
+				Fourth: Nested{First: "789", Second: "GHI"},
+				Fifth:  "012",
+			},
+		},
+		{
+			name: "All ASCII characters with padding",
+			raw:  []byte(" 2  B  5  E  8  H  1 \n"),
+			expected: Test{
+				First:  "2",
+				Second: Nested{First: "B", Second: "5"},
+				Third:  "E",
+				Fourth: Nested{First: "8", Second: "H"},
+				Fifth:  "1",
+			},
+		},
+		{
+			name: "Multi-byte characters",
+			raw:  []byte("123x☃x456x☃x789x☃x012\n"),
+			expected: Test{
+				First:  "123",
+				Second: Nested{First: "x☃x", Second: "456"},
+				Third:  "x☃x",
+				Fourth: Nested{First: "789", Second: "x☃x"},
+				Fifth:  "012",
+			},
+		},
+		{
+			name: "Multi-byte characters with padding",
+			raw:  []byte(" ☃  Ñ  ☃  Ñ  ☃  Ñ  ☃ \n"),
+			expected: Test{
+				First:  "☃",
+				Second: Nested{First: "Ñ", Second: "☃"},
+				Third:  "Ñ",
+				Fourth: Nested{First: "☃", Second: "Ñ"},
+				Fifth:  "☃",
+			},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			d := NewDecoder(bytes.NewReader(tt.raw))
+			d.SetUseCodepointIndices(true)
+			var s Test
+			err := d.Decode(&s)
+			if err != nil {
+				t.Errorf("Unexpected err: %v", err)
+			}
+			if !reflect.DeepEqual(tt.expected, s) {
+				t.Errorf("Decode(%v) want %v, have %v", tt.raw, tt.expected, s)
+			}
+		})
+	}
+}
+
 // Verify the behavior of Decoder.Decode at the end of a file. See
 // https://github.com/ianlopshire/go-fixedwidth/issues/6 for more details.
 func TestDecode_EOF(t *testing.T) {
